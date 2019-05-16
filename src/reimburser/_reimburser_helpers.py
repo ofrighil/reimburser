@@ -66,7 +66,7 @@ def reimbs_mats_getter(
         sub_table = table.query(f'currency == "{c}"').drop(columns=['currency'])
         # Make sure the order is right
         sub_table = sub_table[['reimbursee', 'cost', 'reimbursers']]
-        logger.info(f'making C matrix for {c}') 
+        logger.info(f'making {c} C matrix') 
         reimbs_matrices[c] = _matrix_maker(sub_table, participants)
 
     return table, reimbs_matrices
@@ -78,7 +78,7 @@ def _matrix_maker(sub_table: Table, participants: Set[str]) -> Matrix:
     num_participants = len(participants)
     for (i, (creditor, credit, debtors)) in sub_table.iterrows():
         logger.info(f'{creditor} is the reimbursee with {credit} currency'
-                    + 'credits')
+                    + ' credits')
         reimbursers = set(participants)
         if debtors is np.nan:
             # If the creditor paid for everyone, the debt is equally split
@@ -95,8 +95,41 @@ def _matrix_maker(sub_table: Table, participants: Set[str]) -> Matrix:
             reimbursers = debtor_set - {creditor}
 
         logger.info(f'the reimbursers are {", ".join(reimbursers)},'
-                    + f'each of them owe the reimbursee {debt}')
+                    + f' each of them owe the reimbursee {debt}')
 
         C.loc[creditor][reimbursers] = debt
 
     return C
+
+def reduction_algorithm(C: Matrix) -> None:
+    credits: pd.Series = C.sum(axis=1)
+    debts: pd.Series = C.sum()
+    balance = credits - debts
+
+    C.loc[:, :] = np.nan # reset the matrix
+
+    logger.info(f'the balance is zero: {sum(balance) == 0.0}')
+    
+    while balance.any():
+        debtor: str = balance.idxmin()
+        logger.info(f'{debtor}\'s total debt amounts to {balance[debtor]}' \
+                    + ' currency credits')
+
+        while balance[debtor] < 0.0:
+            creditor: str = balance.idxmax()
+            logger.info(f'{creditor} has been chosen')
+
+            if balance[creditor] < abs(balance[debtor]):
+                logger.info(f'{debtor}\'s debt will be partially repaid by' \
+                            + f' paying {creditor} {balance[creditor]}' \
+                            + ' currency credits')
+                C.loc[creditor, debtor] = balance[creditor]
+                balance[debtor] += balance[creditor]
+                balance[creditor] = 0.0
+            else:
+                logger.info(f'{debtor}\'s debt will be fully repaid by' \
+                            + f' paying {creditor} {-balance[debtor]}' \
+                            + ' currency credits')
+                C.loc[creditor, debtor] = -balance[debtor]
+                balance[creditor] += balance[debtor]
+                balance[debtor] = 0.0
