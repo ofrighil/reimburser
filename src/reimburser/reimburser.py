@@ -1,5 +1,6 @@
 from typing import NewType, Set
 
+from ._emailer import Emailer
 from ._types import FilePath
 from ._reimburser_helper import ReimburserHelper
 
@@ -33,5 +34,10 @@ class Reimburser:
     def save(self) -> None:
         pass
 
-    def send_emails(self, send_attach=True, save=False) -> None:
-        pass
+    def send_emails(self) -> None:
+        emailer = Emailer(
+            self.trip_title,
+            self.emails,
+            self.reimbursement_matrices,
+            self.summary_tables)
+        emailer.send()
