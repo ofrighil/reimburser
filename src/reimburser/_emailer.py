@@ -1,10 +1,8 @@
-import asyncio
-
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from getpass import getpass
 from smtplib import SMTP
-from typing import Dict
+from typing import Dict, List
 
 from ._types import Matrix, Table
 
@@ -20,7 +18,7 @@ class Emailer:
         self.reimbursement_matrices = reimbursement_matrices
         self.summary_tables = summary_tables
 
-        self_.max_name_len: int = max(map(len, self.emails.keys()))
+        self._max_name_len: int = max(map(len, self.emails.keys()))
 
     def send(self, subject: str = 'reimbursements'):
         sender_email = input('Please enter your email account: ')
@@ -59,35 +57,41 @@ class Emailer:
             + 'If you have debts to repay, please be courteous and ' \
             + 'reimburse your fellow participant(s) in a timely fashion.\n' \
 
-        subbody_debt = ''
-        subbody_credit = ''
+        subbody: str = ''
+        subbody_debt: List = list()
+        subbody_credit: List = list()
         for currency, reimbs in self.reimbursement_matrices.items():
             debts = reimbs[recipient].dropna()
-            credits = reimbs[recipient].dropna()
+            credits = reimbs.loc[recipient].dropna()
             for creditor, credit in credits.iteritems():
                 creditor = creditor.rjust(self._max_name_len)
                 amount = f'{credit} {currency}'.ljust(6+1+3)
-                subbody_debt += '\t' + creditor + ' | ' + amount + '\n'
+                subbody_debt.append('\t' + creditor + ' | ' + amount)
             for debtor, debt in debts.iteritems():
                 debtor = debtor.rjust(self._max_name_len)
                 amount = f'{debt} {currency}'.ljust(6+1+3)
-                subbody_credit += '\t' + debtor + ' | ' + amount + '\n'
+                subbody_credit.append('\t' + debtor + ' | ' + amount)
 
-        if len(subbody_debt):
-            subbody_debt = 'Please reimburse the following participant(s):\n' \
-                + subbody_debt
+        if len(subbody_debt) == 1:
+            subbody += 'Please reimburse the following participant:\n' \
+                + subbody_debt[0]
+        elif len(subbody_debt) > 1:
+            subbody = 'Please reimburse the following participant(s):\n' \
+                + '\n'.join(subbody_debt)
         else:
-            subbody_debt += 'You do not need to reimburse anyone.\n'
+            subbody += 'You do not need to reimburse anyone.'
 
-        if len(subbody_credit):
-            subbody_credit = 'The following participant(s) are obligated to ' \
-                + 'reimburse you.\n' + subbody_credit
+        subbody += '\n\n'
+
+        if len(subbody_credit) == 1:
+            subbody += 'The following participant is obligated to ' \
+                + 'reimburse you:\n' + subbody_credit[0]
+        elif len(subbody_credit) > 1:
+            subbody = 'The following participant(s) are obligated to ' \
+                + 'reimburse you:\n' + '\n'.join(subbody_credit)
         else:
-            subbody_credit += 'You do not have any outstanding ' \
-                + 'reimbursements.\n'
+            subbody += 'You do not have any outstanding reimbursements.' \
 
-        body += '\n' + subbody_debt + '\n' + subbody_credit
-        #body += 'The remaining email gives an overview of all the expenses ' \
-        #    + f'from the trip:\n\n{self.summary_tables}'
+        body += '\n' + subbody 
 
         return body
