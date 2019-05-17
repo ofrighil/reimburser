@@ -1,8 +1,7 @@
 from typing import NewType, Set
 
-from ._custom_types import FilePath
-from ._reimburser_helpers import (email_getter, reimbs_mats_getter,
-    construct_tables)
+from ._types import FilePath
+from ._reimburser_helper import ReimburserHelper
 
 class Reimburser:
     def __init__(
@@ -13,15 +12,17 @@ class Reimburser:
             primary_currency: str = 'USD'):
 
         self.trip_title = trip_title
-        self.emails = email_getter(participants_file)
+        self.emails: Dict[str, str] =  ReimburserHelper.email_getter(
+            participants_file)
         participants: Set[str] = set(self.emails.keys())
         (self.table,
-         self.reimbursement_matrices) = reimbs_mats_getter(
+         self.reimbursement_matrices) = ReimburserHelper.reimbs_mats_getter(
             costs_file, 
             participants,
             primary_currency)
 
-        self.summary_tables: str = construct_tables(self.table)
+        self.summary_tables: str = ReimburserHelper.construct_tables(
+            self.table)
 
     def __repr__(self):
         return f'Reimbursements for {self.trip_title}'
