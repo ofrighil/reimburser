@@ -5,24 +5,15 @@ from typing import Dict, NewType, Set
 import numpy as np
 import pandas as pd
 
+from ._custom_errors import FieldError, FileFormatError
+from ._custom_types import Email, Matrix, Name, Table
+
 FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
+logger.disabled = True
 
-# Define custom types
-Table = NewType('Table', pd.DataFrame)
-Matrix = NewType('Matrix', pd.DataFrame)
-
-# Define custom errors
-class FileFormatError(Exception):
-    """Raised when the file is not the appropriate format"""
-    pass
-
-class FieldError(Exception):
-    """Raised when the file does not have the required fields"""
-    pass
-
-def email_getter(participants_file: str) -> Dict[str, str]:
+def email_getter(participants_file: str) -> Dict[Name, Email]:
     if not participants_file.endswith('.csv'):
         raise FileFormatError('The input file is not formatted as a csv')
     emails = dict()
@@ -54,7 +45,8 @@ def reimbs_mats_getter(
     reimbs_matrices = dict()
     table: pd.DataFrame = pd.read_csv(costs_file)
     # Ensure the table fields are lowercase for simplified operations later.
-    table.colums = map(str.lower, table.columns)
+    lowercased = dict(zip(table.columns, map(str.lower, table.columns)))
+    table.rename(columns=lowercased, inplace=True)
 
     if 'currency' not in table:
         logger.info('table does not have the field "currency"')
@@ -98,7 +90,7 @@ def _matrix_maker(sub_table: Table, participants: Set[str]) -> Matrix:
         if debtors is np.nan:
             # If the creditor paid for everyone, the debt is equally split
             # amongst everyone, including the creditor.
-            debt = credit / num_participants
+            debt = _hround(credit / num_participants)
             reimbursers = set(participants) - {creditor}
         else:
             # TODO: Implement 'not' case
@@ -106,7 +98,7 @@ def _matrix_maker(sub_table: Table, participants: Set[str]) -> Matrix:
             # equally split amongst them, which may or may not include the
             # creditor.
             debtor_set = set(map(str.strip, debtors.split(',')))
-            debt = credit / len(debtor_set)
+            debt = _hround(credit / len(debtor_set))
             reimbursers = debtor_set - {creditor}
 
         logger.info(f'the reimbursers are {", ".join(reimbursers)},'
@@ -114,18 +106,20 @@ def _matrix_maker(sub_table: Table, participants: Set[str]) -> Matrix:
 
         C.loc[creditor][reimbursers] = debt
 
+    _reduction_algorithm(C)
+
     return C
 
-def reduction_algorithm(C: Matrix) -> None:
+def _reduction_algorithm(C: Matrix) -> None:
     credits: pd.Series = C.sum(axis=1)
     debts: pd.Series = C.sum()
     balance = credits - debts
 
     C.loc[:, :] = np.nan # reset the matrix
 
-    logger.info(f'the balance is zero: {sum(balance) == 0.0}')
+    logger.info(f'the balance is zero: {abs(_hround(sum(balance))) == 0.0}')
     
-    while balance.any():
+    while balance.all():
         debtor: str = balance.idxmin()
         logger.info(f'{debtor}\'s total debt amounts to {balance[debtor]}' \
                     + ' currency credits')
@@ -139,23 +133,33 @@ def reduction_algorithm(C: Matrix) -> None:
                             + f' paying {creditor} {balance[creditor]}' \
                             + ' currency credits')
                 C.loc[creditor, debtor] = balance[creditor]
-                balance[debtor] += balance[creditor]
+                balance[debtor] = _hround(balance[debtor] -
+                        balance[creditor])
                 balance[creditor] = 0.0
             else:
                 logger.info(f'{debtor}\'s debt will be fully repaid by' \
                             + f' paying {creditor} {-balance[debtor]}' \
                             + ' currency credits')
                 C.loc[creditor, debtor] = -balance[debtor]
-                balance[creditor] += balance[debtor]
+                balance[creditor] = _hround(balance[creditor] -
+                        balance[debtor])
                 balance[debtor] = 0.0
+
+def _hround(n: float, r: int = 2) -> int:
+    """Implements half round up."""
+    diff = round((round(n, r+1) - round(n, r)) * 10 ** (r+1))
+    if diff >= 5:
+        return n + (10 - diff) * 10 ** -(r+1)
+    else:
+        return round(n, r)
 
 def construct_tables(table: Table) -> str:
     summary_tables = ''
-    summary_tables += _construct_overview_table(table)
+    summary_tables += _construct_master_table(table)
 
     return summary_tables
 
-def _construct_overview_table(table: Table) -> str:
+def _construct_master_table(table: Table) -> str:
     fields = [
         'reimbursee',
         'cost',
@@ -179,7 +183,7 @@ def _construct_overview_table(table: Table) -> str:
     # adjust all values relative to the longest element in the column.
     max_name_len: int = max(stringified_table['reimbursee'].str.len().max(),
         len(fields[0]))
-    # The 1 is for the space and the 3 is for the currency code
+    # The 1 is for the space and the 3 is for the currency code length
     max_amt_len: int = stringified_table['cost'].str.len().max()+1+3
     max_reimb_len: int = max(stringified_table['reimbursers'].str.len().max(),
         len(fields[3]))
