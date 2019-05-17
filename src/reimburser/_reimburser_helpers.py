@@ -5,16 +5,26 @@ from typing import Dict, NewType, Set
 import numpy as np
 import pandas as pd
 
-# Define custom types
-Table = NewType('Table', pd.DataFrame)
-Matrix = NewType('Matrix', pd.DataFrame)
-
 FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Define custom types
+Table = NewType('Table', pd.DataFrame)
+Matrix = NewType('Matrix', pd.DataFrame)
+
+# Define custom errors
+class FileFormatError(Exception):
+    """Raised when the file is not the appropriate format"""
+    pass
+
+class FieldError(Exception):
+    """Raised when the file does not have the required fields"""
+    pass
+
 def email_getter(participants_file: str) -> Dict[str, str]:
-    logger.info(f'reading {participants_file}')
+    if not participants_file.endswith('.csv'):
+        raise FileFormatError('The input file is not formatted as a csv')
     emails = dict()
 
     with open(participants_file, 'r') as csv_f:
@@ -38,8 +48,13 @@ def reimbs_mats_getter(
         costs_file: str, 
         participants: Set[str], 
         primary_currency: str) -> (Table, Dict[str, Matrix]):
+    if not costs_file.endswith('.csv'):
+        raise FileFormatError('The input file is not formatted as a csv')
+
     reimbs_matrices = dict()
     table: pd.DataFrame = pd.read_csv(costs_file)
+    # Ensure the table fields are lowercase for simplified operations later.
+    table.colums = map(str.lower, table.columns)
 
     if 'currency' not in table:
         logger.info('table does not have the field "currency"')
@@ -57,23 +72,23 @@ def reimbs_mats_getter(
         'reimbursers',
     }
 
-    if set(table.columns) != required_fields:
-        raise Exception('The input table fields do not match the required \
-                fields')
+    table_fields = set(table.columns)
+    if not table_fields >= required_fields:
+        raise FieldError('The input table is missing required fields')
 
     all_currencies: np.ndarray = table['currency'].drop_duplicates().values
     for c in all_currencies:
         sub_table = table.query(f'currency == "{c}"').drop(columns=['currency'])
         # Make sure the order is right
         sub_table = sub_table[['reimbursee', 'cost', 'reimbursers']]
-        logger.info(f'making {c} C matrix') 
+        logger.info(f'making {c} cost matrix') 
         reimbs_matrices[c] = _matrix_maker(sub_table, participants)
 
     return table, reimbs_matrices
 
 def _matrix_maker(sub_table: Table, participants: Set[str]) -> Matrix:
     # C is the cost matrix
-    C = pd.DataFrame(index=participants, columns=participants)
+    C = pd.DataFrame(index=participants, columns=participants, dtype=float)
 
     num_participants = len(participants)
     for (i, (creditor, credit, debtors)) in sub_table.iterrows():
@@ -133,3 +148,77 @@ def reduction_algorithm(C: Matrix) -> None:
                 C.loc[creditor, debtor] = -balance[debtor]
                 balance[creditor] += balance[debtor]
                 balance[debtor] = 0.0
+
+def construct_tables(table: Table) -> str:
+    summary_tables = ''
+    summary_tables += _construct_overview_table(table)
+
+    return summary_tables
+
+def _construct_overview_table(table: Table) -> str:
+    fields = [
+        'reimbursee',
+        'cost',
+        'currency',
+        'reimbursers',
+    ]
+
+    if 'notes' in table.columns:
+        fields.append('notes')
+
+    side_reimbs = table['reimbursers'].notna()
+    def add_space(string): return ', '.join(string.split(','))
+    spaced_reimbursers = table['reimbursers'][side_reimbs].apply(add_space)
+
+    stringified_table = table[fields].fillna(value={'reimbursers': 'everyone'})
+    def add_decimals(num): return format(num, '.2f')
+    stringified_table['cost'] = stringified_table['cost'].apply(add_decimals)
+    stringified_table['reimbursers'][side_reimbs] = spaced_reimbursers
+
+    # In order to format the table properly automatically, it is necessary to
+    # adjust all values relative to the longest element in the column.
+    max_name_len: int = max(stringified_table['reimbursee'].str.len().max(),
+        len(fields[0]))
+    # The 1 is for the space and the 3 is for the currency code
+    max_amt_len: int = stringified_table['cost'].str.len().max()+1+3
+    max_reimb_len: int = max(stringified_table['reimbursers'].str.len().max(),
+        len(fields[3]))
+
+    header = fields[0].center(max_name_len) + ' | ' \
+        + fields[1].center(max_amt_len) + ' | ' \
+        + fields[3].center(max_reimb_len)
+    separator = '-' * max_name_len + ' | ' \
+        + '-' * max_amt_len + ' | ' \
+        + '-' * max_reimb_len
+
+    if 'notes' in fields:
+        max_note_len: int = max(stringified_table['notes'].str.len().max(),
+            len('notes'))
+        header += ' | ' + 'notes'.center(max_note_len) + '\n'
+        separator += ' | ' + '-' * max_note_len + '\n'
+    else:
+        header += '\n'
+        separator += '\n'
+
+    table_string = header + separator
+
+    for (i, row) in stringified_table.iterrows():
+        (reimbursee,
+         cost,
+         currency,
+         reimbursers,
+         *notes) = row
+
+        table_string += reimbursee.ljust(max_name_len) + ' | ' \
+            + (cost + ' ' + currency).center(max_amt_len) + ' | ' \
+            + reimbursers.center(max_reimb_len)
+
+        if len(notes) == 0:
+            table_string += '\n'
+        else:
+            if notes[0] is np.nan:
+                table_string += ' |\n'
+            else:
+                table_string += ' | ' + notes[0].ljust(max_note_len) + '\n'
+
+    return table_string
