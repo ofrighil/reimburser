@@ -1,7 +1,7 @@
 from setuptools import find_packages, setup
 
 NAME = 'reimburser'
-VERSION = '0.1.0'
+VERSION = '1.0'
 AUTHOR = 'emof'
 URL = 'https://github.com/emof/reimburser'
 DESCRIPTION = 'WRITE THIS'
