@@ -7,12 +7,29 @@ from typing import Dict, List
 from ._types import Matrix, Table
 
 class Emailer:
+    """A helper class to set up and send emails out.
+
+    Attributes:
+        send: Sends out the emails to all participants.
+    """
     def __init__(
             self,
             trip_title: str,
             emails: Dict,
             reimbursement_matrices: Dict[str, Matrix],
             summary_tables: str):
+        """Initializes Emailer.
+
+        Args:
+            trip_title: The title of the trip (to be used as part of the email
+                subject).
+            emails: A mapping between the participant's name and the
+                participant's email.
+            reimbursement_matrices: A dict that maps a currency code to its
+                respective cost matrix.
+            summary_tables: A string containing the summary of all relevent
+                cost information gathered during the trip.
+        """
         self.trip_title = trip_title
         self.emails = emails
         self.reimbursement_matrices = reimbursement_matrices
@@ -20,11 +37,17 @@ class Emailer:
 
         self._max_name_len: int = max(map(len, self.emails.keys()))
 
-    def send(self, subject: str = 'reimbursements'):
+    def send(self, subject: str = 'reimbursements') -> None:
+        """Sends out the emails to all participants.
+
+        Args:
+            subject: The secondary title of the email subject (next to the trip
+            title).
+        """
         sender_email = input('Please enter your email account: ')
         password = getpass('Please enter your password: ')
 
-        # TODO: support for other email servers
+        # TODO: add support for other email servers
         # Currently, this application only supports gmail. Also, the user must
         # give permission for "less secure apps" to access gmail account.
         with SMTP('smtp.gmail.com', 587) as server:
@@ -37,19 +60,27 @@ class Emailer:
                 msg = MIMEMultipart()
                 msg['From'] = sender_email
                 msg['To'] = recipient_email
-                msg['Subject'] = f'{self.trip_title} reimbursements'
+                msg['Subject'] = f'{self.trip_title} {subject}'
 
                 body = MIMEText(self.write_body(recipient), 'plain')
                 msg.attach(body)
 
                 server.send_message(msg)
 
-        # I think this is unnecessary, but below I make sure that the email
+        # I think this is redundant, but to be sure the sender email
         # information is deleted.
         del sender_email
         del password
 
     def write_body(self, recipient: str) -> str:
+        """Write the body for each individual email.
+
+        Args:
+            recipient: The name of the email recipient.
+
+        Returns:
+            The body of the email to be sent to said recipient.
+        """
         body = f'Dear {recipient},\n\n' \
             + 'You are receiving this message because you participated ' \
             + f'in {self.trip_title}.\n\n' \

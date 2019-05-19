@@ -31,6 +31,13 @@ setup(
     package_dir={'': 'src'},
     include_package_data=True,
     install_requires=REQUIRES,
-    #classifiers=,
-    #entry_points=,
+    entry_points={
+        'console_scripts': [
+            'reimburser=reimburser.__main__',
+        ],
+    }
+    classifiers=[
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python :: 3.7',
+    ]
 )
