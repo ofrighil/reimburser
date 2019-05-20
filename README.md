@@ -25,18 +25,6 @@ future.
 
 ## Installation
 
-Since this package is not on PyPI, and I have no intention of publishing this
-there in the foreseeable future, you will need to first download this
-repository directly to your computer.
-
-The easiest way to download the repositroy is to clone it:
-
-```sh
-$ pip clone https://github.com/emof/reimburser
-```
-
-Else, just directly download the files manually from the GitHub page.
-
 I recommend installing this package in a virtual environment so that it won't
 interfere with other, more official packages.
 
@@ -48,16 +36,32 @@ $ python -m venv env
 $ source env/bin/activate
 (env) $
 ```
-Now, install the package with the command:
+
+I have no intention of publishing this on PyPI in the foreseeable future, so 
+you will have to install this package from GitHub. 
+The easiest way to install this package is directly using `pip`:
+
+```sh
+(env) $ pip install git+https://github.com/emof/reimburser
+```
+
+However, if you'd much rather have the files on your computer first, you can 
+manually download the files from the GitHub page, or clone them:
+
+```sh
+(env) $ git clone https://github.com/emof/reimburser
+```
+
+Then, install the package with `pip`:
 
 ```sh
 (env) $ pip install ~/path/to/reimburser/
 ```
 
 You can now use this package while in the virtual environment.
-
-To leave the virtual environment, just type `deactivate`. You will know you are
-out of the virtual environment when the `(env)` disappears.
+To leave the virtual environment, just type `deactivate`. 
+You will know you are out of the virtual environment when the `(env)` 
+disappears.
 
 ## Example
 
