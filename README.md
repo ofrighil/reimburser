@@ -37,11 +37,17 @@ $ source env/bin/activate
 (env) $
 ```
 
-Then, clone this GitHub repository and use the python package manager (`pip`) to
-install the package:
+The easiest way to install this is directly from GitHub using the python package
+manager:
 
 ```sh
-(env) $ git clone https://github.com/emof/reimburser
+(env) $ pip install https://github.com/emof/reimburser
+```
+
+Or, clone or directly download the files from GitHub, go to wherever the 
+directory was downloaded, then run:
+
+```sh
 (env) $ pip install reimburser
 ```
 
@@ -70,7 +76,7 @@ the ("participant", "email") column order.
 out):
 
 | reimbursee | cost | currency | reimbursers | notes |
-| ---------- | ---- | -------- | ----------- | ----- |
+| ---------- | ---: | -------- | ----------- | ----- |
 | Dan | 100.00 | | | groceries |
 | Bob |  42.98 | | Bob, Carol | also paid for Carol's lunch |
 | Alice | 12.34 | | Dan | IOU |

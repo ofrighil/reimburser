@@ -54,6 +54,6 @@ class Reimburser:
         emailer = Emailer(
             self.trip_title,
             self.emails,
-            self.reimbursement_matrices,
-            self.summary_tables)
+            self.table,
+            self.reimbursement_matrices)
         emailer.send()
