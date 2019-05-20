@@ -35,7 +35,7 @@ setup(
         'console_scripts': [
             'reimburser=reimburser.__main__',
         ],
-    }
+    },
     classifiers=[
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3.7',
