@@ -39,14 +39,8 @@ class Reimburser:
             participants,
             primary_currency)
 
-        self.summary_tables: str = ReimburserHelper.construct_tables(
-            self.table)
-
     def __repr__(self):
         return f'Reimbursements for {self.trip_title}'
-
-    def __str__(self):
-        return self.summary_tables
 
     def send_emails(self) -> None:
         """Sends out an email to all participants.

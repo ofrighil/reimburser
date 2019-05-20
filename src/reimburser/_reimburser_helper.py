@@ -126,15 +126,6 @@ class ReimburserHelper:
 
         return table, reimbs_matrices
 
-    @staticmethod
-    def construct_tables(table: Table) -> str:
-        """Constructs a summary of all the collected information.
-        """
-        summary_tables = ''
-        summary_tables += _construct_master_table(table)
-
-        return summary_tables
-
 def _matrix_maker(sub_table: Table, participants: Set[str]) -> Matrix:
     """Creates the cost matrix for a given cost table for all participants.
 
@@ -267,72 +258,3 @@ def _hround(n: float, r: int = 2) -> int:
         return n + (10 - diff) * 10 ** -(r+1)
     else:
         return round(n, r)
-
-def _construct_master_table(table: Table) -> str:
-    """Constructs a print friendly costs table.
-    """
-    fields = [
-        'reimbursee',
-        'cost',
-        'currency',
-        'reimbursers',
-    ]
-
-    if 'notes' in table.columns:
-        fields.append('notes')
-
-    side_reimbs = table['reimbursers'].notna()
-    def add_space(string): return ', '.join(string.split(','))
-    spaced_reimbursers = table['reimbursers'][side_reimbs].apply(add_space)
-
-    stringified_table = table[fields].fillna(value={'reimbursers': 'everyone'})
-    stringified_table['cost'] = stringified_table['cost'].apply(str)
-    stringified_table['reimbursers'][side_reimbs] = spaced_reimbursers
-
-    # In order to format the table properly automatically, it is necessary to
-    # adjust all values relative to the longest element in the column.
-    max_name_len: int = max(stringified_table['reimbursee'].str.len().max(),
-        len(fields[0]))
-    # The 1 is for the space and the 3 is for the currency code length.
-    max_amt_len: int = stringified_table['cost'].str.len().max()+1+3
-    max_reimb_len: int = max(stringified_table['reimbursers'].str.len().max(),
-        len(fields[3]))
-
-    header = fields[0].center(max_name_len) + ' | ' \
-        + fields[1].center(max_amt_len) + ' | ' \
-        + fields[3].center(max_reimb_len)
-    separator = '-' * max_name_len + ' | ' \
-        + '-' * max_amt_len + ' | ' \
-        + '-' * max_reimb_len
-
-    if 'notes' in fields:
-        max_note_len: int = max(stringified_table['notes'].str.len().max(),
-            len('notes'))
-        header += ' | ' + 'notes'.center(max_note_len) + '\n'
-        separator += ' | ' + '-' * max_note_len + '\n'
-    else:
-        header += '\n'
-        separator += '\n'
-
-    table_string = header + separator
-
-    for (i, row) in stringified_table.iterrows():
-        (reimbursee,
-         cost,
-         currency,
-         reimbursers,
-         *notes) = row
-
-        table_string += reimbursee.ljust(max_name_len) + ' | ' \
-            + (cost + ' ' + currency).center(max_amt_len) + ' | ' \
-            + reimbursers.center(max_reimb_len)
-
-        if len(notes) == 0:
-            table_string += '\n'
-        else:
-            if notes[0] is np.nan:
-                table_string += ' |\n'
-            else:
-                table_string += ' | ' + notes[0].ljust(max_note_len) + '\n'
-
-    return table_string
