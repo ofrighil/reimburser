@@ -8,7 +8,7 @@ participants an email detailing the reimbursement information.
 ## Requirements
 
 This package requires Python 3.7.3 or greater. Technically, probably not, but I
-wrote this is Python 3.7.3 and it's good practice to keep up with software
+wrote this in Python 3.7.3 and it's good practice to keep up with software
 updates so you might as well just update Python to the most recent version.
 
 Currently, this package only supports gmail for sending out the emails. Also,
@@ -83,7 +83,7 @@ out):
 The header is required in this file. The three most important columns here are
 "reimbursee", "cost", and "reimbursers". Each row denotes a payment made by the
 reimbursee during the trip. The cost is the cost of the payment, to be split
-amongst the reimbursers. If the payment needs to be split amongst all
+equally amongst the reimbursers. If the payment needs to be split amongst all
 participants, then "reimbursers" row element can be left blank. However, if
 only a subset of participants need to reimburse the reimbursee, those
 participants should be listed there. In this case, the reimbursee should also
