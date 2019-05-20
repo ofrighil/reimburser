@@ -11,7 +11,7 @@ from ._types import Email, Matrix, Name, Table
 FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
-logger.disabled = False
+logger.disabled = True
 
 class ReimburserHelper:
     """A helper class containing all the helper functions used in Reimburser. 
