@@ -51,8 +51,6 @@ directory was downloaded, then run:
 (env) $ pip install reimburser
 ```
 
-That's it.
-
 To leave the virtual environment, just type `deactivate`. You will know you are
 out of the virtual environment when the `(env)` disappears.
 
@@ -80,6 +78,7 @@ out):
 | Dan | 100.00 | | | groceries |
 | Bob |  42.98 | | Bob, Carol | also paid for Carol's lunch |
 | Alice | 12.34 | | Dan | IOU |
+| Carol |  3.00 | | not Alice |
 
 The header is required in this file. The three most important columns here are
 "reimbursee", "cost", and "reimbursers". Each row denotes a payment made by the
@@ -88,7 +87,9 @@ amongst the reimbursers. If the payment needs to be split amongst all
 participants, then "reimbursers" row element can be left blank. However, if
 only a subset of participants need to reimburse the reimbursee, those
 participants should be listed there. In this case, the reimbursee should also
-be listed.
+be listed. In the case participants did not take part in the payment, they can
+be removed from consideration of the payment by having a "not " prepended to
+the name. The previous two cases should not be used together.
 
 If only one currency is used, the "currency" column can be
 left out altogether and defaults to USD. If included but not filled, it will be

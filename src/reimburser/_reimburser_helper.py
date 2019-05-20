@@ -11,7 +11,7 @@ from ._types import Email, Matrix, Name, Table
 FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
-logger.disabled = True
+logger.disabled = False
 
 class ReimburserHelper:
     """A helper class containing all the helper functions used in Reimburser. 
@@ -166,24 +166,37 @@ def _matrix_maker(sub_table: Table, participants: Set[str]) -> Matrix:
     """
     C = pd.DataFrame(index=participants, columns=participants, dtype=float)
 
+    def not_in(string) -> bool: 
+        return True if 'not' in string else False
+
     num_participants = len(participants)
     for (i, (creditor, credit, debtors)) in sub_table.iterrows():
         logger.info(f'{creditor} is the reimbursee with {credit} currency'
                     + ' credits')
-        reimbursers = set(participants)
+        #reimbursers = set(participants)
         if debtors is np.nan:
             # If the creditor paid for everyone, the debt is equally split
             # amongst everyone, including the creditor.
             debt = _hround(credit / num_participants)
-            reimbursers = set(participants) - {creditor}
+            reimbursers: Set = set(participants) - {creditor}
         else:
-            # TODO: Implement 'not' case
             # If the creditor only paid for specific participants, the debt is
             # equally split amongst them, which may or may not include the
             # creditor.
+            # If everyone except those beginning with "not" is responsible for
+            # the debt, that case is considered by removing those persons
             debtor_set = set(map(str.strip, debtors.split(',')))
-            debt = _hround(credit / len(debtor_set))
-            reimbursers = debtor_set - {creditor}
+            if any(map(not_in, debtor_set)):
+                false_debtors: List = list()
+                for debtor in debtor_set:
+                    if 'not ' == debtor[:4]:
+                        false_debtors.append(debtor[4:])
+                actual_debtors: Set = set(participants) - set(false_debtors)
+                debt = _hround(credit / len(actual_debtors))
+                reimbursers: Set = actual_debtors - {creditor}
+            else:
+                debt = _hround(credit / len(debtor_set))
+                reimbursers: Set = debtor_set - {creditor}
 
         logger.info(f'the reimbursers are {", ".join(reimbursers)},'
                     + f' each of them owe the reimbursee {debt}')
@@ -235,7 +248,7 @@ def _reduction_algorithm(C: Matrix) -> None:
                             + f' paying {creditor} {balance[creditor]}' \
                             + ' currency credits')
                 C.loc[creditor, debtor] = balance[creditor]
-                balance[debtor] = _hround(balance[debtor] -
+                balance[debtor] = _hround(balance[debtor] +
                         balance[creditor])
                 balance[creditor] = 0.0
             else:
@@ -243,7 +256,7 @@ def _reduction_algorithm(C: Matrix) -> None:
                             + f' paying {creditor} {-balance[debtor]}' \
                             + ' currency credits')
                 C.loc[creditor, debtor] = -balance[debtor]
-                balance[creditor] = _hround(balance[creditor] -
+                balance[creditor] = _hround(balance[creditor] +
                         balance[debtor])
                 balance[debtor] = 0.0
 
@@ -273,8 +286,7 @@ def _construct_master_table(table: Table) -> str:
     spaced_reimbursers = table['reimbursers'][side_reimbs].apply(add_space)
 
     stringified_table = table[fields].fillna(value={'reimbursers': 'everyone'})
-    def add_decimals(num): return format(num, '.2f')
-    stringified_table['cost'] = stringified_table['cost'].apply(add_decimals)
+    stringified_table['cost'] = stringified_table['cost'].apply(str)
     stringified_table['reimbursers'][side_reimbs] = spaced_reimbursers
 
     # In order to format the table properly automatically, it is necessary to
