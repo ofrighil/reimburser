@@ -93,6 +93,9 @@ class ReimburserHelper:
         lowercased = dict(zip(table.columns, map(str.lower, table.columns)))
         table.rename(columns=lowercased, inplace=True)
 
+        if 'notes' in table:
+            table.fillna(value={'notes': ''}, inplace=True)
+
         if 'currency' not in table:
             logger.info('table does not have the column "currency"')
             table['currency'] = primary_currency

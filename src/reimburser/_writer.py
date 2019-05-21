@@ -44,10 +44,17 @@ attach_tag_table = _html_tagger('table', indentation=LEVEL_2, long=True)
 attach_tag_caption = _html_tagger('caption', indentation=LEVEL_3)
 attach_tag_tbody = _html_tagger('tbody', indentation=LEVEL_3, long=True)
 attach_tag_tr = _html_tagger('tr', indentation=LEVEL_4, long=True)
-attach_tag_tr_rjust = _html_tagger('tr', attr_pair=('align', 'right'),
-                                   indentation=LEVEL_4, long=True)
+attach_tag_tr_rjust_long = _html_tagger(
+    'tr', 
+    attr_pair=('align', 'right'),
+    indentation=LEVEL_4, 
+    long=True)
 attach_tag_th = _html_tagger('th', indentation=LEVEL_5)
 attach_tag_td = _html_tagger('td', indentation=LEVEL_5)
+attach_tag_td_rjust = _html_tagger(
+    'td', 
+    attr_pair=('align', 'right'),
+    indentation=LEVEL_5)
 
 class Writer:
     def __init__(
@@ -195,10 +202,16 @@ class Writer:
             credits = reimbs.loc[recipient].dropna()
             for creditor, credit in debts.iteritems():
                 debt_statements.append(
-                    attach_tag_li(f'{creditor}, {credit} {currency}'))
+                    attach_tag_li(
+                        f'{creditor}, ' \
+                        + '{credit}'.rjust(cost_len) \
+                        + ' {currency}'))
             for debtor, debt in credits.iteritems():
                 credit_statements.append(
-                    attach_tag_li(f'{debtor}, {debt} {currency}'))
+                    attach_tag_li(
+                        f'{debtor}, ' \
+                        + '{debt}'.rjust(cost_len) \
+                        + '{currency}'))
 
         if len(debt_statements) == 1:
             torso += attach_tag_p('Please reimburse the following '
@@ -240,8 +253,17 @@ class Writer:
         stringified_df = _stringify_table(df)
 
         for (i, row_elements) in stringified_df.iterrows():
-            string += '\n' + attach_tag_tr('\n'.join(map(attach_tag_td,
-                row_elements)))
+            # Commented out code is a bit sleaker, but restrictive
+            #string += '\n' + attach_tag_tr('\n'.join(map(attach_tag_td,
+            #    row_elements)))
+            table_content: List = []
+            for col, val in row_elements.iteritems():
+                if col == 'cost':
+                    table_content.append(attach_tag_td_rjust(val))
+                else:
+                    table_content.append(attach_tag_td(val))
+
+            string += '\n' + attach_tag_tr('\n'.join(table_content))
 
         return attach_tag_table(
             attach_tag_caption(f'All Costs of {self.trip_title}')
@@ -269,7 +291,7 @@ class Writer:
 
         for (i, row_elements) in stringified_df.iterrows():
             matrix += '\n' \
-                + attach_tag_tr_rjust(attach_tag_th(i)
+                + attach_tag_tr_rjust_long(attach_tag_th(i)
                                 + '\n'
                                 + '\n'.join(map(attach_tag_td, row_elements)))
 
