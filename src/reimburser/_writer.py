@@ -104,7 +104,7 @@ class Writer:
             subbody += 'Please reimburse the following participants:\n' \
                 + '\n'.join(subbody_debt)
         else:
-            subbody += 'You do not need to reimburse anyone.'
+            subbody += 'You don\'t have any payable reimbursements.'
 
         subbody += '\n\n'
 
@@ -115,7 +115,7 @@ class Writer:
             subbody += 'The following participants are obligated to ' \
                 + 'reimburse you:\n' + '\n'.join(subbody_credit)
         else:
-            subbody += 'You do not have any outstanding reimbursements.' \
+            subbody += 'You don\'t have any receivable reimbursements.' \
 
         body += '\n' + subbody
 
@@ -180,7 +180,7 @@ class Writer:
                 + f'in {self.trip_title}.') + '\n' \
             + attach_tag_p('I hope you had a pleasant time.') + '\n' \
             + attach_tag_p(
-                'If you have any debts to repy, please be courteous and '
+                'If you have any debts to repay, please be courteous and '
                 + 'reimburse your fellow participant(s) in a timely fashion.')
 
         return attach_tag_div(preamble)
@@ -216,7 +216,8 @@ class Writer:
                     + 'participants:') + '\n' \
                 + attach_tag_ul('\n'.join(debt_statements))
         else:
-            torso += attach_tag_p('You don\'t need to reimburse anyone.')
+            torso += attach_tag_p('You don\'t have any payable '
+                + 'reimbursements.')
 
         torso += '\n'
 
@@ -226,10 +227,10 @@ class Writer:
                 + attach_tag_ul(credit_statements[0])
         elif len(credit_statements) > 1:
             torso += attach_tag_p('The following participants are obligated '
-                    + ' to reimburse you:') \
+                    + 'to reimburse you:') \
                 + attach_tag_ul('\n'.join(credit_statements))
         else:
-            torso += attach_tag_p('You don\'t have any outstanding '
+            torso += attach_tag_p('You don\'t have any receivable '
                     + 'reimbursements.')
 
         return attach_tag_div(torso)
@@ -265,14 +266,14 @@ class Writer:
             + attach_tag_tbody(string))
 
     def _construct_html_matrix(self, currency: str, df: Matrix) -> str:
-        """Constructs a cost matrix for the given currency.
+        """Constructs a reimbursement matrix for the given currency.
 
         Args:
             currency: The currency of the cost matrix.
             df: A cost matrix.
 
         Returns:
-            The cost matrix as an HTML table.
+            The reimbursement matrix as an HTML table.
         """
         stringified_df = df.copy() \
                             .fillna(value=0.0) \
@@ -290,7 +291,7 @@ class Writer:
                                 + '\n'.join(map(attach_tag_td, row_elements)))
 
         return attach_tag_table(
-            attach_tag_caption('Cost Matrix for ' + currency)
+            attach_tag_caption(f'{currency} Reimbursement Matrix')
             + '\n'
             + attach_tag_tbody(matrix))
 

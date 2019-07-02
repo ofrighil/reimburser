@@ -93,8 +93,16 @@ class ReimburserHelper:
         lowercased = dict(zip(table.columns, map(str.lower, table.columns)))
         table.rename(columns=lowercased, inplace=True)
 
+        columns = [
+            'reimbursee', 
+            'cost',
+            'currency',
+            'reimbursers',
+        ]
+
         if 'notes' in table:
             table.fillna(value={'notes': ''}, inplace=True)
+            columns.append('notes')
 
         if 'currency' not in table:
             logger.info('table does not have the column "currency"')
@@ -105,18 +113,14 @@ class ReimburserHelper:
                     value={'currency': primary_currency},
                     inplace=True)
 
-        required_columns = {
-            'reimbursee', 
-            'cost',
-            'currency',
-            'reimbursers',
-        }
+
+        table = table[columns]
 
         table_columns = set(table.columns)
         # It doesn't really matter if there are extra columns, since the code
         # will just ignore them. However, there will be a problem if the input
         # file doesn't have the required columns.
-        if not table_columns >= required_columns:
+        if not table_columns >= set(columns):
             raise FieldError('The input table is missing required columns.')
 
         all_currencies: np.ndarray = table['currency'].drop_duplicates().values
@@ -158,7 +162,7 @@ def _matrix_maker(sub_table: Table, participants: Set[str]) -> Matrix:
     Returns:
         Returns the cost matrix, which is a pandas DataFrame.
     """
-    C = pd.DataFrame(index=participants, columns=participants, dtype=float)
+    C = pd.DataFrame(0, index=participants, columns=participants, dtype=float)
 
     def not_in(string) -> bool: 
         return True if 'not' in string else False
@@ -183,8 +187,8 @@ def _matrix_maker(sub_table: Table, participants: Set[str]) -> Matrix:
             if any(map(not_in, debtor_set)):
                 false_debtors: List = list()
                 for debtor in debtor_set:
-                    if 'not ' == debtor[:4]:
-                        false_debtors.append(debtor[4:])
+                    if debtor.startswith("not "):
+                        false_debtors.append(debtor.split(' ')[1])
                 actual_debtors: Set = set(participants) - set(false_debtors)
                 debt = _hround(credit / len(actual_debtors))
                 reimbursers: Set = actual_debtors - {creditor}
@@ -195,7 +199,7 @@ def _matrix_maker(sub_table: Table, participants: Set[str]) -> Matrix:
         logger.info(f'the reimbursers are {", ".join(reimbursers)},'
                     + f' each of them owe the reimbursee {debt}')
 
-        C.loc[creditor][reimbursers] = debt
+        C.loc[creditor, reimbursers] += debt
 
     _reduction_algorithm(C)
 
@@ -228,7 +232,7 @@ def _reduction_algorithm(C: Matrix) -> None:
 
     logger.info(f'the balance is zero: {abs(_hround(sum(balance))) == 0.0}')
     
-    while balance.all():
+    while not (balance == 0.0).all():
         debtor: str = balance.idxmin()
         logger.info(f'{debtor}\'s total debt amounts to {balance[debtor]}' \
                     + ' currency credits')
@@ -241,7 +245,7 @@ def _reduction_algorithm(C: Matrix) -> None:
                 logger.info(f'{debtor}\'s debt will be partially repaid by' \
                             + f' paying {creditor} {balance[creditor]}' \
                             + ' currency credits')
-                C.loc[creditor, debtor] = balance[creditor]
+                C.loc[creditor, debtor] = _hround(balance[creditor])
                 balance[debtor] = _hround(balance[debtor] +
                         balance[creditor])
                 balance[creditor] = 0.0
@@ -249,10 +253,11 @@ def _reduction_algorithm(C: Matrix) -> None:
                 logger.info(f'{debtor}\'s debt will be fully repaid by' \
                             + f' paying {creditor} {-balance[debtor]}' \
                             + ' currency credits')
-                C.loc[creditor, debtor] = -balance[debtor]
+                C.loc[creditor, debtor] = _hround(-balance[debtor])
                 balance[creditor] = _hround(balance[creditor] +
                         balance[debtor])
                 balance[debtor] = 0.0
+    print(C)
 
 def _hround(n: float, r: int = 2) -> int:
     """Implements half round up."""
