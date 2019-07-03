@@ -202,10 +202,10 @@ class Writer:
             credits = reimbs.loc[recipient].dropna()
             for creditor, credit in debts.iteritems():
                 debt_statements.append(
-                    attach_tag_li(f'{creditor}, {credit} {currency}'))
+                        attach_tag_li(f'{creditor}, {credit:.2f} {currency}'))
             for debtor, debt in credits.iteritems():
                 credit_statements.append(
-                    attach_tag_li(f'{debtor}, {debt} {currency}'))
+                        attach_tag_li(f'{debtor}, {debt:.2f} {currency}'))
 
         if len(debt_statements) == 1:
             torso += attach_tag_p('Please reimburse the following '

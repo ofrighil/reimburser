@@ -40,6 +40,11 @@ class ReimburserHelper:
             raise FileFormatError('The input file is not formatted as a csv.')
         emails = dict()
 
+        participants = pd.read_csv(participants_file)
+        for i, (participant, email) in participants.iterrows():
+            emails[participant.strip()] = email.strip()
+
+        """
         with open(participants_file, 'r') as csv_f:
             header_bool = csv.Sniffer().has_header(csv_f.read(1024))
             csv_f.seek(0)
@@ -54,6 +59,7 @@ class ReimburserHelper:
                 participant, email = map(str.strip, row) # remove whitespace
                 logger.info(f'recording {participant}, email {email}')
                 emails[participant] = email
+        """
 
         return emails
 
@@ -175,7 +181,7 @@ def _matrix_maker(sub_table: Table, participants: Set[str]) -> Matrix:
         if debtors is np.nan:
             # If the creditor paid for everyone, the debt is equally split
             # amongst everyone, including the creditor.
-            debt = _hround(credit / num_participants)
+            debt = credit / num_participants
             reimbursers: Set = set(participants) - {creditor}
         else:
             # If the creditor only paid for specific participants, the debt is
@@ -190,10 +196,10 @@ def _matrix_maker(sub_table: Table, participants: Set[str]) -> Matrix:
                     if debtor.startswith("not "):
                         false_debtors.append(debtor.split(' ')[1])
                 actual_debtors: Set = set(participants) - set(false_debtors)
-                debt = _hround(credit / len(actual_debtors))
+                debt = credit / len(actual_debtors)
                 reimbursers: Set = actual_debtors - {creditor}
             else:
-                debt = _hround(credit / len(debtor_set))
+                debt = credit / len(debtor_set)
                 reimbursers: Set = debtor_set - {creditor}
 
         logger.info(f'the reimbursers are {", ".join(reimbursers)},'
@@ -226,7 +232,7 @@ def _reduction_algorithm(C: Matrix) -> None:
     """
     credits: pd.Series = C.sum(axis=1)
     debts: pd.Series = C.sum()
-    balance = credits - debts
+    balance = (credits - debts).apply(_hround)
 
     C.loc[:, :] = np.nan # reset the matrix
 
@@ -245,21 +251,20 @@ def _reduction_algorithm(C: Matrix) -> None:
                 logger.info(f'{debtor}\'s debt will be partially repaid by' \
                             + f' paying {creditor} {balance[creditor]}' \
                             + ' currency credits')
-                C.loc[creditor, debtor] = _hround(balance[creditor])
-                balance[debtor] = _hround(balance[debtor] +
-                        balance[creditor])
+                C.loc[creditor, debtor] = balance[creditor]
+                balance[debtor] = _hround(balance[debtor] 
+                        + balance[creditor])
                 balance[creditor] = 0.0
             else:
                 logger.info(f'{debtor}\'s debt will be fully repaid by' \
                             + f' paying {creditor} {-balance[debtor]}' \
                             + ' currency credits')
-                C.loc[creditor, debtor] = _hround(-balance[debtor])
-                balance[creditor] = _hround(balance[creditor] +
-                        balance[debtor])
+                C.loc[creditor, debtor] = -balance[debtor]
+                balance[creditor] = _hround(balance[creditor] 
+                        + balance[debtor])
                 balance[debtor] = 0.0
-    print(C)
 
-def _hround(n: float, r: int = 2) -> int:
+def _hround(n: float, r: int = 2) -> float:
     """Implements half round up."""
     diff = round((round(n, r+1) - round(n, r)) * 10 ** (r+1))
     if diff >= 5:
